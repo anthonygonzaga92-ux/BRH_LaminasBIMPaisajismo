@@ -536,7 +536,7 @@ function renderTable(){
       ondrop="handleFileDrop(event)">
       <i class="fa-solid fa-file-arrow-up"></i>
       Haz clic o arrastra PDF(s) aquí<br>
-      <span style="font-size:11px;color:var(--text3);display:block;margin-top:4px">Extrae: Código · Nombre · Especialidad · Uso · Zona · Fecha · Rev · Diseño · Dibujo · Revisión · Aprobación · Director</span>
+      <span style="font-size:11px;color:var(--text3);display:block;margin-top:4px">Si ya los cargaste antes y faltan datos → vuelve a arrastrarlos para actualizar campos vacíos</span>
     </div>
     <div class="progress-bar-wrap" id="progress-wrap">
       <div class="progress-bar-label" id="progress-label">Procesando...</div>
@@ -714,7 +714,19 @@ async function processFiles(files){
       } else {
         var newRev=parseInt((data.rev||'R00').replace(/\D/g,''),10);
         var oldRev=parseInt((exists.rev||'R00').replace(/\D/g,''),10);
-        if(newRev>oldRev){Object.assign(exists,{...data,id:exists.id,createdAt:exists.createdAt});added++;}
+        // Actualiza SIEMPRE los campos que estén vacíos, o si la rev es más nueva
+        var shouldUpdate = newRev >= oldRev;
+        if(shouldUpdate){
+          // Preserva campos que el usuario haya editado manualmente (no vacíos)
+          var merged = {};
+          var fields = ['title','especialidad','uso','zona','escala','fecha','rev','diseno','dibujo','revision','aprobacion','director'];
+          fields.forEach(function(k){
+            // Si el campo existente está vacío o la rev es mayor → toma el nuevo valor
+            merged[k] = (!exists[k] || newRev > oldRev) ? (data[k]||exists[k]) : exists[k];
+          });
+          Object.assign(exists, merged, {updatedAt:new Date().toISOString()});
+          added++;
+        }
       }
     }
   }
