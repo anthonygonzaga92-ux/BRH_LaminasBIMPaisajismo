@@ -5,10 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Láminas BIM · Revisor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@2.16.105/build/pdf.min.js"></script>
 <style>
 :root{--bg:#0e0f11;--bg2:#15171a;--bg3:#1c1f23;--bg4:#242830;--border:#2a2e35;--border2:#363c46;--accent:#4f8ef7;--accent2:#3a6fd4;--accent-dim:rgba(79,142,247,0.12);--green:#2dd4a0;--green-dim:rgba(45,212,160,0.12);--amber:#f5a623;--amber-dim:rgba(245,166,35,0.1);--red:#f05656;--red-dim:rgba(240,86,86,0.1);--text:#e8eaf0;--text2:#8b93a5;--text3:#555d6e;--mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;--r:6px;--r2:10px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -43,8 +42,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .content{flex:1;overflow-y:auto;padding:16px 18px}
 .content::-webkit-scrollbar{width:5px}
 .content::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
-
-/* SOURCE CARDS */
 .source-cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px}
 .source-card{padding:12px 14px;border:1px solid var(--border);border-radius:var(--r2);background:var(--bg2);cursor:pointer;transition:all .2s}
 .source-card:hover{border-color:var(--border2);background:var(--bg3)}
@@ -56,16 +53,18 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--s
 .input-row input{flex:1;padding:7px 11px;font-size:12px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-family:var(--mono)}
 .input-row input:focus{outline:none;border-color:var(--accent)}
 .input-row input::placeholder{color:var(--text3)}
-.file-drop{border:1.5px dashed var(--border2);border-radius:var(--r2);padding:22px;text-align:center;margin-bottom:16px;color:var(--text3);font-size:13px;cursor:pointer;transition:all .2s}
+.file-drop{border:1.5px dashed var(--border2);border-radius:var(--r2);padding:22px;text-align:center;margin-bottom:12px;color:var(--text3);font-size:13px;cursor:pointer;transition:all .2s}
 .file-drop:hover,.file-drop.drag-over{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
 .file-drop i{font-size:26px;display:block;margin-bottom:7px}
-
-/* TABLE */
+.progress-bar-wrap{background:var(--accent-dim);border:1px solid rgba(79,142,247,.2);border-radius:var(--r);padding:10px 14px;margin-bottom:12px;display:none}
+.progress-bar-label{font-size:11px;color:var(--accent);margin-bottom:6px}
+.progress-bar-track{height:4px;background:var(--bg4);border-radius:2px;overflow:hidden}
+.progress-bar-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s}
 .table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r2);background:var(--bg2)}
 .table-wrap::-webkit-scrollbar{height:7px}
 .table-wrap::-webkit-scrollbar-track{background:var(--bg3)}
 .table-wrap::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
-table{width:100%;border-collapse:collapse;min-width:1400px}
+table{width:100%;border-collapse:collapse;min-width:1600px}
 thead tr:first-child th{background:var(--bg3);padding:10px 12px;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);white-space:nowrap;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2}
 thead tr:first-child th:first-child{position:sticky;left:0;z-index:3;background:var(--bg3)}
 thead tr.filter-row th{background:var(--bg2);padding:5px 8px;border-bottom:1px solid var(--border);position:sticky;top:37px;z-index:2}
@@ -79,7 +78,7 @@ tbody tr:last-child{border-bottom:none}
 td{padding:9px 12px;font-size:12px;color:var(--text2);white-space:nowrap}
 td:first-child{position:sticky;left:0;background:var(--bg2);z-index:1;font-family:var(--mono);font-size:11px;color:var(--text)}
 tbody tr:hover td:first-child{background:var(--bg3)}
-td.td-title{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+td.td-clip{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .rev-badge{display:inline-flex;align-items:center;justify-content:center;padding:2px 8px;border-radius:var(--r);font-size:10px;font-family:var(--mono);font-weight:600;min-width:34px}
 .rev-latest{background:var(--green-dim);color:var(--green);border:1px solid rgba(45,212,160,.25)}
 .rev-mid{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(245,166,35,.25)}
@@ -89,20 +88,14 @@ td.td-title{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 .empty-state{text-align:center;padding:50px 20px;color:var(--text3)}
 .empty-state i{font-size:34px;display:block;margin-bottom:10px}
 .empty-state p{font-size:13px;margin-bottom:14px}
-
-/* FILTER BAR */
 .filter-bar{display:flex;gap:8px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
 .filter-chip{padding:4px 12px;border-radius:99px;border:1px solid var(--border);background:var(--bg3);font-size:11px;color:var(--text3);cursor:pointer;transition:all .15s}
 .filter-chip:hover{border-color:var(--border2);color:var(--text2)}
 .filter-chip.active{border-color:var(--accent);color:var(--accent);background:var(--accent-dim)}
-
-/* SEARCH */
 .search-wrap{display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:6px 11px}
 .search-wrap i{font-size:12px;color:var(--text3)}
 .search-wrap input{background:none;border:none;color:var(--text);font-size:12px;font-family:var(--sans);outline:none;width:160px}
 .search-wrap input::placeholder{color:var(--text3)}
-
-/* MODAL */
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(3px)}
 .modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);width:560px;max-height:85vh;overflow-y:auto}
 .modal::-webkit-scrollbar{width:4px}
@@ -115,10 +108,8 @@ td.td-title{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 .form-field{display:flex;flex-direction:column;gap:5px}
 .form-field.full{grid-column:1/-1}
 .form-field label{font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3)}
-.form-field input,.form-field select{padding:7px 10px;font-size:12px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-family:var(--sans)}
-.form-field input:focus,.form-field select:focus{outline:none;border-color:var(--accent)}
-
-/* LOG */
+.form-field input{padding:7px 10px;font-size:12px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-family:var(--sans)}
+.form-field input:focus{outline:none;border-color:var(--accent)}
 .log-entry{padding:11px 14px;border-bottom:1px solid var(--border);display:flex;gap:12px}
 .log-entry:last-child{border-bottom:none}
 .log-time{font-family:var(--mono);font-size:11px;color:var(--text3);white-space:nowrap;min-width:130px;padding-top:1px}
@@ -129,22 +120,16 @@ td.td-title{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 .log-badge.add{background:var(--green-dim);color:var(--green)}
 .log-badge.update{background:var(--accent-dim);color:var(--accent)}
 .log-badge.scan{background:var(--amber-dim);color:var(--amber)}
-
-/* TOAST */
 .toast{position:fixed;bottom:22px;right:22px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r2);padding:11px 16px;font-size:13px;color:var(--text);display:flex;align-items:center;gap:10px;z-index:200;transform:translateY(70px);opacity:0;transition:all .3s;max-width:320px}
 .toast.show{transform:translateY(0);opacity:1}
 .toast i{font-size:15px}
 .toast.success i{color:var(--green)}
 .toast.error i{color:var(--red)}
 .toast.info i{color:var(--accent)}
-
-/* ACC CONFIG MODAL */
 .info-box{background:var(--accent-dim);border:1px solid rgba(79,142,247,.3);border-radius:var(--r2);padding:13px;margin:4px 0}
 .info-box-title{font-size:12px;font-weight:600;color:var(--accent);margin-bottom:7px}
 .info-box ol{font-size:12px;color:var(--text2);line-height:1.7;padding-left:16px}
 .info-box a{color:var(--accent);text-decoration:none}
-
-/* DETAIL PANEL */
 .detail-panel{position:fixed;right:0;top:0;height:100vh;width:360px;background:var(--bg2);border-left:1px solid var(--border2);z-index:50;transform:translateX(100%);transition:transform .25s;overflow-y:auto}
 .detail-panel.open{transform:translateX(0)}
 .detail-panel::-webkit-scrollbar{width:4px}
@@ -156,14 +141,12 @@ td.td-title{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
 .dp-field{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px;gap:10px}
 .dp-field .lbl{font-size:11px;color:var(--text3);min-width:85px}
 .dp-field .val{font-size:12px;color:var(--text);text-align:right;font-family:var(--mono);word-break:break-all}
-
 @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 .table-wrap{animation:fadeIn .2s ease both}
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- SIDEBAR -->
   <div class="sidebar">
     <div class="logo">
       <div class="logo-title"><span class="dot"></span>BIM Sheet Reviewer</div>
@@ -175,7 +158,10 @@ td.td-title{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
     <div class="nav-section">Herramientas</div>
     <div class="nav-item" onclick="exportCSV()"><i class="fa-solid fa-file-csv"></i>Exportar CSV</div>
     <div class="nav-item" onclick="exportJSON()"><i class="fa-solid fa-file-code"></i>Exportar JSON</div>
-    <div class="nav-item" onclick="clearData()"><i class="fa-solid fa-trash-can"></i>Limpiar datos</div>
+    <div class="nav-item" onclick="clearPDFSource()" style="color:var(--amber)" id="nav-clear-pdf">
+      <i class="fa-solid fa-file-slash"></i>Limpiar PDFs cargados
+    </div>
+    <div class="nav-item" onclick="clearData()" style="color:var(--red)"><i class="fa-solid fa-trash-can"></i>Limpiar todos los datos</div>
     <div class="sidebar-stats">
       <div class="stat-row"><span>Total láminas</span><span id="stat-total">0</span></div>
       <div class="stat-row"><span>Especialidades</span><span id="stat-specs">0</span></div>
@@ -184,9 +170,7 @@ td.td-title{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
     </div>
   </div>
 
-  <!-- MAIN -->
   <div class="main">
-    <!-- REGISTRO VIEW -->
     <div id="view-registro" style="display:flex;flex-direction:column;height:100%;min-width:0">
       <div class="tabs">
         <div class="tab active" onclick="switchSource('acc')">Autodesk ACC</div>
@@ -203,8 +187,6 @@ td.td-title{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
       </div>
       <div class="content" id="registro-content"></div>
     </div>
-
-    <!-- HISTORIAL VIEW -->
     <div id="view-historial" style="display:none;flex-direction:column;height:100%">
       <div class="topbar">
         <div class="topbar-title">Historial / Log</div>
@@ -215,7 +197,6 @@ td.td-title{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   </div>
 </div>
 
-<!-- DETAIL PANEL -->
 <div class="detail-panel" id="detail-panel">
   <div class="dp-header">
     <h4 id="dp-code">—</h4>
@@ -224,7 +205,6 @@ td.td-title{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   <div id="dp-body"></div>
 </div>
 
-<!-- ADD/EDIT MODAL -->
 <div class="modal-overlay" id="add-modal" style="display:none" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="modal-header">
@@ -233,17 +213,17 @@ td.td-title{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
     </div>
     <div class="modal-body">
       <div class="form-grid">
-        <div class="form-field full"><label>Código del plano *</label><input id="f-code" placeholder="500122-BERH001-740-XX-DR-LS-030012"></div>
-        <div class="form-field full"><label>Título del plano *</label><input id="f-title" placeholder="Parque Inundable Villa Peru-Canada"></div>
-        <div class="form-field"><label>Especialidad *</label><input id="f-spec" placeholder="Arquitectura y Paisaje Urbano"></div>
-        <div class="form-field"><label>Uso</label><input id="f-uso" placeholder="740 – Outflow – 1"></div>
-        <div class="form-field"><label>Zona</label><input id="f-zona" placeholder="Sullana-Sullana-Piura"></div>
-        <div class="form-field"><label>Escala</label><input id="f-escala" placeholder="Indicada"></div>
+        <div class="form-field full"><label>Código del plano *</label><input id="f-code" placeholder="500122-BERH001-740-XX-DR-LS-030062"></div>
+        <div class="form-field full"><label>Nombre del plano *</label><input id="f-title" placeholder="BERMA PROCERES - NUEVO HORIZONTE 1 Y 2"></div>
+        <div class="form-field"><label>Especialidad *</label><input id="f-spec" placeholder="ARQUITECTURA Y PAISAJE URBANO"></div>
+        <div class="form-field"><label>Uso</label><input id="f-uso" placeholder="740 - Outflow - 1"></div>
+        <div class="form-field"><label>Zona</label><input id="f-zona" placeholder="SULLANA-SULLANA-PIURA"></div>
+        <div class="form-field"><label>Escala</label><input id="f-escala" placeholder="INDICADA"></div>
         <div class="form-field"><label>Fecha</label><input id="f-fecha" placeholder="05/06/2026"></div>
-        <div class="form-field"><label>Revisión (Rev)</label><input id="f-rev" placeholder="R02"></div>
+        <div class="form-field"><label>Rev</label><input id="f-rev" placeholder="R01"></div>
         <div class="form-field"><label>Diseño</label><input id="f-diseno" placeholder="Valeria Concha"></div>
         <div class="form-field"><label>Dibujo</label><input id="f-dibujo" placeholder="Anthony Gonzaga"></div>
-        <div class="form-field"><label>Revisión (Persona)</label><input id="f-revision" placeholder="Norca Abarca"></div>
+        <div class="form-field"><label>Revisión (persona)</label><input id="f-revision" placeholder="Norca Abarca"></div>
         <div class="form-field"><label>Aprobación</label><input id="f-aprobacion" placeholder="Carlos Aquino"></div>
         <div class="form-field full"><label>Director del Proyecto</label><input id="f-director" placeholder="Victor Quijandria"></div>
         <div class="form-field full"><label>Notas</label><input id="f-notas" placeholder="Observaciones adicionales..."></div>
@@ -256,7 +236,6 @@ td.td-title{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   </div>
 </div>
 
-<!-- ACC CONFIG MODAL -->
 <div class="modal-overlay" id="acc-modal" style="display:none" onclick="if(event.target===this)closeAccModal()">
   <div class="modal">
     <div class="modal-header">
@@ -266,13 +245,11 @@ td.td-title{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
     <div class="modal-body">
       <div style="display:flex;flex-direction:column;gap:13px">
         <div class="info-box">
-          <div class="info-box-title"><i class="fa-solid fa-circle-info"></i> Cómo obtener tu Personal Access Token (2 min)</div>
+          <div class="info-box-title"><i class="fa-solid fa-circle-info"></i> Cómo obtener tu Personal Access Token</div>
           <ol>
             <li>Ve a <a href="https://profile.autodesk.com/security" target="_blank">profile.autodesk.com/security</a></li>
-            <li>Baja hasta <strong>"Tokens de acceso personal"</strong></li>
-            <li>Clic en <strong>"Generar"</strong></li>
-            <li>Dale un nombre (ej: "BIM Reviewer") y selecciona scope <strong>data:read</strong></li>
-            <li>Copia el token generado y pégalo abajo</li>
+            <li>Baja hasta <strong>"Tokens de acceso personal"</strong> → <strong>"Generar"</strong></li>
+            <li>Scope: <strong>data:read</strong> — copia y pega abajo</li>
           </ol>
         </div>
         <div class="form-field">
@@ -283,7 +260,7 @@ td.td-title{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
           <label>Link de la carpeta ACC</label>
           <input id="acc-folder-url" type="text" placeholder="https://acc.autodesk.com/docs/files/projects/..." style="padding:8px 10px;font-size:12px;border:1px solid var(--border2);border-radius:var(--r);background:var(--bg3);color:var(--text);font-family:var(--mono)">
         </div>
-        <p style="font-size:11px;color:var(--text3)">Tus credenciales se guardan solo en tu navegador y nunca salen de tu dispositivo.</p>
+        <p style="font-size:11px;color:var(--text3)">Tus credenciales se guardan solo en tu navegador.</p>
       </div>
     </div>
     <div class="modal-footer">
@@ -293,71 +270,220 @@ td.td-title{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:n
   </div>
 </div>
 
-<!-- TOAST -->
 <div class="toast" id="toast"><i class="fa-solid fa-circle-check"></i><span id="toast-msg">OK</span></div>
-
-<!-- HIDDEN INPUTS -->
 <input type="file" id="file-input" accept=".pdf" multiple style="display:none" onchange="handleFileSelect(event)">
 <input type="file" id="folder-input" webkitdirectory accept=".pdf" style="display:none" onchange="handleFolderSelect(event)">
 
 <script>
-if(typeof pdfjsLib!=='undefined'){pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'}
+// ── PDF.js Worker: creado como Blob inline para funcionar en cualquier sandbox/CSP
+// Importa el worker desde la misma CDN que el script principal via importScripts
+if(typeof pdfjsLib!=='undefined'){
+  try {
+    var workerUrl = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@2.16.105/build/pdf.worker.min.js';
+    var workerBlob = new Blob(
+      ['importScripts("' + workerUrl + '");'],
+      {type:'application/javascript'}
+    );
+    pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(workerBlob);
+  } catch(e) {
+    // Si Blob falla (muy raro), usa la URL directa como fallback
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@2.16.105/build/pdf.worker.min.js';
+  }
+}
 
-let laminas=JSON.parse(localStorage.getItem('bim_laminas')||'[]');
-let logEntries=JSON.parse(localStorage.getItem('bim_log')||'[]');
-let editingId=null;
-let currentSource='acc';
-let colFilters={};
+let laminas    = JSON.parse(localStorage.getItem('bim_laminas')||'[]');
+let logEntries = JSON.parse(localStorage.getItem('bim_log')||'[]');
+let editingId  = null;
+let currentSource = 'acc';
+let colFilters = {};
 
-// ── VIEWS ──────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  PARSER DE CARÁTULA BRH — REESCRITO
+//  Funciona con texto concatenado de PDF.js (sin saltos reales)
+//  FIX: USO extrae "740 - Outflow - 1" correctamente
+//  FIX: Diseño, Dibujo, Revisión, Aprobación, Director extraídos
+//  FIX: Título del plano limpio sin basura
+// ══════════════════════════════════════════════════════════════
+
+// Labels conocidos — usados como delimitadores de fin de campo
+const KL = 'PLANO|NOMBRE DEL PLANO|TITULO|ESPECIALIDAD|USO|ZONA|ESCALA|FECHA|REV|REVISION|REVISIÓN|CODIGO DEL PLANO|CÓDIGO DEL PLANO|CODIGO|DISEÑO|DISENO|DIBUJO|APROBACION|APROBACIÓN|DIRECTOR DEL PROYECTO|DIRECTOR|SITUACION|SITUACIÓN|PROYECTO';
+
+function xf(labelRx, text, maxLen) {
+  maxLen = maxLen || 80;
+  var p = new RegExp(labelRx+'\\s*[:\\-]\\s*(.+?)(?=\\s+(?:'+KL+')\\s*[:\\-]|$)', 'i');
+  var m = text.match(p);
+  return m ? m[1].trim().substring(0, maxLen) : '';
+}
+
+function parseCaratula(rawText, filename) {
+  // Normaliza preservando quiebres de línea como separador § antes de colapsar espacios
+  var text = rawText
+    .replace(/\r\n|\r|\n/g, ' § ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // ── CÓDIGO ────────────────────────────────────────────────────
+  var codeM = text.match(/\b(\d{6}-[A-Z0-9]+-\d{3}-[A-Z0-9]+-[A-Z]+-[A-Z]+-\d{6})\b/i);
+  var code  = codeM ? codeM[1].toUpperCase() : filename.replace(/\.pdf$/i,'');
+
+  // ── NOMBRE DEL PLANO ──────────────────────────────────────────
+  // Captura entre "PLANO :" y el siguiente label o SITUACION
+  var title = '';
+  var planoM = text.match(/PLANO\s*[:\-]\s*(.+?)(?=\s+(?:SITUACI[OÓ]N|ESPECIALIDAD|USO|ZONA|ESCALA|CODIGO|CÓDIGO|§|$))/i);
+  if (planoM) {
+    title = planoM[1].replace(/SITUACI[OÓ]N.*/i,'').replace(/§/g,' ').trim().substring(0,100);
+  }
+  if (!title) title = filename.replace(/\.pdf$/i,'');
+
+  // ── ESPECIALIDAD ──────────────────────────────────────────────
+  var especialidad = xf('ESPECIALIDAD', text, 70);
+
+  // ── USO ───────────────────────────────────────────────────────
+  // "740 - Outflow - 1" — termina antes de ZONA
+  var uso = '';
+  var usoM = text.match(/\bUSO\s*[:\-]\s*(.+?)(?=\s+(?:ZONA|ESCALA|FECHA|REV\b|CODIGO|CÓDIGO|DISEÑO|DISENO|§|$))/i);
+  if (usoM) uso = usoM[1].replace(/§/g,' ').trim().substring(0,60);
+
+  // ── ZONA ──────────────────────────────────────────────────────
+  var zona = '';
+  var zonaM = text.match(/ZONA\s*[:\-]\s*(.+?)(?=\s+(?:ESCALA|FECHA|REV\b|CODIGO|CÓDIGO|DISEÑO|DISENO|§|$))/i);
+  if (zonaM) zona = zonaM[1].replace(/§/g,' ').trim().substring(0,60);
+
+  // ── ESCALA ────────────────────────────────────────────────────
+  var escala = '';
+  var escalaM = text.match(/ESCALA\s*[:\-]\s*(.+?)(?=\s+(?:FECHA|REV\b|ZONA|CODIGO|CÓDIGO|DISEÑO|DISENO|§|$))/i);
+  if (escalaM) escala = escalaM[1].replace(/§/g,' ').trim().substring(0,30);
+  // Si dice GRAFICA/GRÁFICA no interesa — ya queda así en el campo, el user puede editar
+
+  // ── FECHA ─────────────────────────────────────────────────────
+  var fechaM = text.match(/\b(\d{2}\/\d{2}\/\d{4})\b/);
+  var fecha  = fechaM ? fechaM[1] : '';
+
+  // ── REV ───────────────────────────────────────────────────────
+  // Busca estrictamente R seguido de 2-3 dígitos precedido de REV :
+  var revM = text.match(/\bREV\s*[:\-]\s*(R\d{2,3})\b/i);
+  var rev  = revM ? revM[1].toUpperCase() : '';
+
+  // ── DISEÑO ────────────────────────────────────────────────────
+  var diseno = xf('DISE[ÑN]O', text, 50);
+
+  // ── DIBUJO ────────────────────────────────────────────────────
+  var dibujo = xf('DIBUJO', text, 50);
+
+  // ── REVISIÓN (persona) ────────────────────────────────────────
+  var revision = '';
+  var revPersonaM = text.match(/REVISI[OÓ]N\s*[:\-]\s*(.+?)(?=\s+(?:APROBACI[OÓ]N|DIRECTOR|DISEÑO|DISENO|DIBUJO|§|$))/i);
+  if (revPersonaM) revision = revPersonaM[1].replace(/§/g,' ').trim().substring(0,50);
+
+  // ── APROBACIÓN ────────────────────────────────────────────────
+  var aprobacion = '';
+  var aprobM = text.match(/APROBACI[OÓ]N\s*[:\-]\s*(.+?)(?=\s+(?:DIRECTOR|DISEÑO|DISENO|DIBUJO|REVISI[OÓ]N|§|$))/i);
+  if (aprobM) aprobacion = aprobM[1].replace(/§/g,' ').trim().substring(0,50);
+
+  // ── DIRECTOR DEL PROYECTO ─────────────────────────────────────
+  var director = '';
+  var dirM = text.match(/DIRECTOR(?:\s+DEL\s+PROYECTO)?\s*[:\-]\s*(.+?)(?=\s+(?:DISEÑO|DISENO|DIBUJO|REVISI[OÓ]N|APROBACI[OÓ]N|§|$))/i);
+  if (dirM) director = dirM[1].replace(/§/g,' ').trim().substring(0,60);
+
+  return {code, title, especialidad, uso, zona, escala, fecha, rev,
+          diseno, dibujo, revision, aprobacion, director};
+}
+
+// ══════════════════════════════════════════════════════════════
+//  EXTRACCIÓN PDF — preserva coordenadas Y para saltos de línea
+// ══════════════════════════════════════════════════════════════
+async function extractFromPDF(file) {
+  var fallback = {
+    code: file.name.replace(/\.pdf$/i,'').toUpperCase(),
+    title: '',   // vacío — el user completa manualmente
+    especialidad:'', uso:'', zona:'', escala:'', fecha:'', rev:'',
+    diseno:'', dibujo:'', revision:'', aprobacion:'', director:''
+  };
+  // Intenta extraer el código del nombre del archivo si sigue el patrón BRH
+  var codeFromName = file.name.match(/(\d{6}-[A-Z0-9]+-\d{3}-[A-Z0-9]+-[A-Z]+-[A-Z]+-\d{6})/i);
+  if (codeFromName) fallback.code = codeFromName[1].toUpperCase();
+  if (typeof pdfjsLib === 'undefined') return fallback;
+  try {
+    var ab  = await file.arrayBuffer();
+    var pdf = await pdfjsLib.getDocument({data:ab}).promise;
+    var text = '';
+    for (var i = 1; i <= Math.min(pdf.numPages,3); i++) {
+      var page = await pdf.getPage(i);
+      var tc   = await page.getTextContent();
+      var lastY = null;
+      for (var item of tc.items) {
+        var y = item.transform ? item.transform[5] : null;
+        if (lastY !== null && y !== null && Math.abs(y - lastY) > 3) text += '\n';
+        text += item.str + ' ';
+        lastY = y;
+      }
+      text += '\n';
+    }
+    return parseCaratula(text, file.name);
+  } catch(err) {
+    console.warn('PDF parse error:', err);
+    // Intenta al menos extraer el código del nombre del archivo
+    var codeFromName2 = file.name.match(/(\d{6}-[A-Z0-9]+-\d{3}-[A-Z0-9]+-[A-Z]+-[A-Z]+-\d{6})/i);
+    return {
+      code: codeFromName2 ? codeFromName2[1].toUpperCase() : file.name.replace(/\.pdf$/i,''),
+      title: '', especialidad:'', uso:'', zona:'', escala:'', fecha:'', rev:'',
+      diseno:'', dibujo:'', revision:'', aprobacion:'', director:''
+    };
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+//  VISTAS
+// ══════════════════════════════════════════════════════════════
 function showView(v){
   document.getElementById('view-registro').style.display=v==='registro'?'flex':'none';
   document.getElementById('view-historial').style.display=v==='historial'?'flex':'none';
   document.querySelectorAll('.nav-item').forEach((el,i)=>el.classList.toggle('active',i===(v==='registro'?0:1)));
   if(v==='historial')renderLog(); else renderTable();
 }
-
 function switchSource(s){
   currentSource=s;
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===({acc:0,pdf:1,local:2}[s])));
   renderTable();
 }
 
-// ── RENDER TABLE ───────────────────────────────────────────────
-const COLS=[
-  {key:'code',label:'Código del plano',w:'200px'},
-  {key:'title',label:'Título',w:'180px'},
-  {key:'especialidad',label:'Especialidad',w:'160px'},
-  {key:'uso',label:'Uso',w:'130px'},
-  {key:'zona',label:'Zona',w:'130px'},
-  {key:'escala',label:'Escala',w:'90px'},
-  {key:'fecha',label:'Fecha',w:'90px'},
-  {key:'rev',label:'Rev',w:'70px'},
-  {key:'diseno',label:'Diseño',w:'130px'},
-  {key:'dibujo',label:'Dibujo',w:'130px'},
-  {key:'revision',label:'Revisión',w:'130px'},
-  {key:'aprobacion',label:'Aprobación',w:'130px'},
-  {key:'director',label:'Director',w:'150px'},
-  {key:'notas',label:'Notas',w:'160px'},
+// ══════════════════════════════════════════════════════════════
+//  COLUMNAS
+// ══════════════════════════════════════════════════════════════
+var COLS=[
+  {key:'code',        label:'Código del plano',    w:'210px'},
+  {key:'title',       label:'Nombre del plano',    w:'200px'},
+  {key:'especialidad',label:'Especialidad',         w:'170px'},
+  {key:'uso',         label:'Uso',                  w:'150px'},
+  {key:'zona',        label:'Zona',                 w:'160px'},
+  {key:'escala',      label:'Escala',               w:'90px'},
+  {key:'fecha',       label:'Fecha',                w:'90px'},
+  {key:'rev',         label:'Rev',                  w:'70px'},
+  {key:'diseno',      label:'Diseño',               w:'140px'},
+  {key:'dibujo',      label:'Dibujo',               w:'140px'},
+  {key:'revision',    label:'Revisión',             w:'140px'},
+  {key:'aprobacion',  label:'Aprobación',           w:'140px'},
+  {key:'director',    label:'Director del Proyecto',w:'160px'},
+  {key:'notas',       label:'Notas',                w:'160px'},
 ];
 
+// ══════════════════════════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════════════════════════
 function getFiltered(){
-  const q=(document.getElementById('search-input')?.value||'').toLowerCase();
+  var q=(document.getElementById('search-input')?.value||'').toLowerCase();
   return laminas.filter(l=>{
     if(q&&!Object.values(l).some(v=>String(v||'').toLowerCase().includes(q)))return false;
-    for(const[k,v]of Object.entries(colFilters)){
-      if(v&&!String(l[k]||'').toLowerCase().includes(v.toLowerCase()))return false;
-    }
+    for(var[k,v]of Object.entries(colFilters)){if(v&&!String(l[k]||'').toLowerCase().includes(v.toLowerCase()))return false;}
     return true;
   }).sort((a,b)=>b.code>a.code?1:-1);
 }
 
 function renderTable(){
-  const cfg=JSON.parse(localStorage.getItem('bim_acc_config')||'null');
-  const hasAcc=cfg&&cfg.token;
-  let html='';
+  var cfg=JSON.parse(localStorage.getItem('bim_acc_config')||'null');
+  var hasAcc=cfg&&cfg.token;
+  var html='';
 
-  // Source panel
   html+=`<div class="source-cards">
     <div class="source-card ${currentSource==='acc'?'active-src':''}" onclick="switchSource('acc')">
       <div class="source-card-title"><i class="fa-solid fa-cloud"></i>Autodesk ACC</div>
@@ -365,19 +491,18 @@ function renderTable(){
     </div>
     <div class="source-card ${currentSource==='pdf'?'active-src':''}" onclick="switchSource('pdf')">
       <div class="source-card-title"><i class="fa-solid fa-file-pdf"></i>Cargar PDF</div>
-      <p>Sube uno o varios PDF. Se extrae el carátula automáticamente.</p>
+      <p>Sube uno o varios PDF. Extrae carátula automáticamente.</p>
     </div>
     <div class="source-card ${currentSource==='local'?'active-src':''}" onclick="switchSource('local')">
       <div class="source-card-title"><i class="fa-solid fa-folder-open"></i>Carpeta Local</div>
-      <p>Selecciona una carpeta de tu PC. Lee todos los PDF dentro.</p>
+      <p>Selecciona una carpeta de PC. Lee todos los PDF dentro.</p>
     </div>
   </div>`;
 
-  // Input area per source
   if(currentSource==='acc'){
     html+=`<div class="input-row">
       <input type="text" id="acc-url-input" placeholder="https://acc.autodesk.com/docs/files/projects/..." value="${cfg?.folderUrl||''}">
-      <button class="btn btn-accent" onclick="scanACC()"><i class="fa-solid fa-rotate"></i>Escanear carpeta</button>
+      <button class="btn btn-accent" onclick="scanACC()"><i class="fa-solid fa-rotate"></i>Escanear</button>
       <button class="btn" onclick="openAccModal()"><i class="fa-solid fa-gear"></i>Config Token</button>
     </div>`;
   } else if(currentSource==='pdf'){
@@ -388,66 +513,68 @@ function renderTable(){
       ondrop="handleFileDrop(event)">
       <i class="fa-solid fa-file-arrow-up"></i>
       Haz clic o arrastra PDF(s) aquí<br>
-      <span style="font-size:11px;color:var(--text3);display:block;margin-top:4px">Se extrae el carátula automáticamente con IA</span>
+      <span style="font-size:11px;color:var(--text3);display:block;margin-top:4px">Extrae: Código · Nombre · Especialidad · Uso · Zona · Fecha · Rev · Diseño · Dibujo · Revisión · Aprobación · Director</span>
+    </div>
+    <div class="progress-bar-wrap" id="progress-wrap">
+      <div class="progress-bar-label" id="progress-label">Procesando...</div>
+      <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
     </div>`;
   } else {
     html+=`<div class="input-row">
       <button class="btn btn-accent" onclick="document.getElementById('folder-input').click()">
         <i class="fa-solid fa-folder-open"></i>Seleccionar carpeta de PC
       </button>
-      <span style="font-size:11px;color:var(--text3)">Se procesarán todos los PDF dentro de la carpeta seleccionada</span>
+    </div>
+    <div class="progress-bar-wrap" id="progress-wrap">
+      <div class="progress-bar-label" id="progress-label">Procesando...</div>
+      <div class="progress-bar-track"><div class="progress-bar-fill" id="progress-fill" style="width:0%"></div></div>
     </div>`;
   }
 
-  // Specialty filter chips
-  const specs=[...new Set(laminas.map(l=>l.especialidad).filter(Boolean))];
+  var specs=[...new Set(laminas.map(l=>l.especialidad).filter(Boolean))];
   if(specs.length>0){
-    const activeSpec=colFilters['especialidad']||'';
+    var activeSpec=colFilters['especialidad']||'';
     html+=`<div class="filter-bar">
       <span style="font-size:11px;color:var(--text3)">Especialidad:</span>
       <div class="filter-chip ${!activeSpec?'active':''}" onclick="setSpecFilter('')">Todas</div>
-      ${specs.map(s=>`<div class="filter-chip ${activeSpec===s?'active':''}" onclick="setSpecFilter('${s.replace(/'/g,"\\'")}')">${s}</div>`).join('')}
+      ${specs.map(s=>`<div class="filter-chip ${activeSpec===s?'active':''}" onclick="setSpecFilter('${s.replace(/'/g,"\\'")}')"> ${s}</div>`).join('')}
     </div>`;
   }
 
-  const rows=getFiltered();
+  var rows=getFiltered();
   document.getElementById('laminas-count').textContent=`${rows.length} lámina${rows.length!==1?'s':''}`;
 
   if(rows.length===0&&laminas.length===0){
     html+=`<div class="empty-state"><i class="fa-solid fa-layer-group"></i><p>No hay láminas registradas aún.</p>
       <button class="btn btn-accent" onclick="openAddModal()"><i class="fa-solid fa-plus"></i>Añadir primera lámina</button></div>`;
   } else if(rows.length===0){
-    html+=`<div class="empty-state"><i class="fa-solid fa-magnifying-glass"></i><p>No hay láminas que coincidan con el filtro.</p></div>`;
+    html+=`<div class="empty-state"><i class="fa-solid fa-magnifying-glass"></i><p>Sin resultados para este filtro.</p></div>`;
   } else {
     html+=`<div class="table-wrap"><table>
       <thead>
-        <tr>
-          ${COLS.map(c=>`<th style="min-width:${c.w}">${c.label}</th>`).join('')}
-          <th style="min-width:70px">Acciones</th>
-        </tr>
-        <tr class="filter-row">
-          ${COLS.map(c=>`<th><input class="filter-input" placeholder="Filtrar..." value="${colFilters[c.key]||''}" oninput="setColFilter('${c.key}',this.value)"></th>`).join('')}
-          <th></th>
-        </tr>
+        <tr>${COLS.map(c=>`<th style="min-width:${c.w}">${c.label}</th>`).join('')}<th style="min-width:80px">Acciones</th></tr>
+        <tr class="filter-row">${COLS.map(c=>`<th><input class="filter-input" placeholder="Filtrar..." value="${colFilters[c.key]||''}" oninput="setColFilter('${c.key}',this.value)"></th>`).join('')}<th></th></tr>
       </thead>
       <tbody>
         ${rows.map(l=>{
-          const revClass=l.rev>='R02'?'rev-latest':l.rev==='R01'?'rev-mid':'rev-old';
+          var revNum=parseInt((l.rev||'R00').replace(/\D/g,''),10);
+          var revClass=revNum>=2?'rev-latest':revNum===1?'rev-mid':'rev-old';
+          var td=(v,cls)=>`<td class="${cls||''}" title="${v||''}">${v||'—'}</td>`;
           return `<tr onclick="openDetail('${l.id}')">
-            <td>${l.code||'—'}</td>
-            <td class="td-title" title="${l.title||''}">${l.title||'—'}</td>
-            <td>${l.especialidad||'—'}</td>
-            <td>${l.uso||'—'}</td>
-            <td>${l.zona||'—'}</td>
-            <td>${l.escala||'—'}</td>
-            <td>${l.fecha||'—'}</td>
+            <td style="font-family:var(--mono);font-size:11px" title="${l.code||''}">${l.code||'—'}</td>
+            ${td(l.title,'td-clip')}
+            ${td(l.especialidad,'td-clip')}
+            ${td(l.uso)}
+            ${td(l.zona)}
+            ${td(l.escala)}
+            ${td(l.fecha)}
             <td><span class="rev-badge ${revClass}">${l.rev||'—'}</span></td>
-            <td>${l.diseno||'—'}</td>
-            <td>${l.dibujo||'—'}</td>
-            <td>${l.revision||'—'}</td>
-            <td>${l.aprobacion||'—'}</td>
-            <td>${l.director||'—'}</td>
-            <td class="td-title" title="${l.notas||''}">${l.notas||'—'}</td>
+            ${td(l.diseno)}
+            ${td(l.dibujo)}
+            ${td(l.revision)}
+            ${td(l.aprobacion)}
+            ${td(l.director,'td-clip')}
+            ${td(l.notas,'td-clip')}
             <td onclick="event.stopPropagation()" style="display:flex;gap:2px;padding:6px 8px">
               <button class="action-btn" title="Editar" onclick="openEditModal('${l.id}')"><i class="fa-solid fa-pen"></i></button>
               <button class="action-btn" title="Eliminar" onclick="deleteLamina('${l.id}')"><i class="fa-solid fa-trash"></i></button>
@@ -462,20 +589,22 @@ function renderTable(){
   updateStats();
 }
 
-function setColFilter(key,val){colFilters[key]=val;renderTable()}
-function setSpecFilter(val){colFilters['especialidad']=val;renderTable()}
+function setColFilter(key,val){colFilters[key]=val;renderTable();}
+function setSpecFilter(val){colFilters['especialidad']=val;renderTable();}
 
-// ── DETAIL PANEL ──────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  DETAIL PANEL
+// ══════════════════════════════════════════════════════════════
 function openDetail(id){
-  const l=laminas.find(x=>x.id===id);if(!l)return;
+  var l=laminas.find(x=>x.id===id);if(!l)return;
   document.getElementById('dp-code').textContent=l.code||'—';
-  const sections=[
-    ['Identificación',[['Código',l.code],['Título',l.title],['Especialidad',l.especialidad],['Uso',l.uso],['Zona',l.zona],['Escala',l.escala],['Fecha',l.fecha],['Rev',l.rev]]],
+  var sections=[
+    ['Identificación',[['Código',l.code],['Nombre del plano',l.title],['Especialidad',l.especialidad],['Uso',l.uso],['Zona',l.zona],['Escala',l.escala],['Fecha',l.fecha],['Rev',l.rev]]],
     ['Equipo',[['Diseño',l.diseno],['Dibujo',l.dibujo],['Revisión',l.revision],['Aprobación',l.aprobacion],['Director',l.director]]],
     ['Notas',[['Notas',l.notas||'—']]],
   ];
-  let html=sections.map(([sec,fields])=>{
-    const content=fields.filter(f=>f[1]).map(([lbl,val])=>`<div class="dp-field"><span class="lbl">${lbl}</span><span class="val">${val}</span></div>`).join('');
+  var html=sections.map(([sec,fields])=>{
+    var content=fields.filter(f=>f[1]).map(([lbl,val])=>`<div class="dp-field"><span class="lbl">${lbl}</span><span class="val">${val}</span></div>`).join('');
     return content?`<div class="dp-section"><h5>${sec}</h5>${content}</div>`:'';
   }).join('');
   html+=`<div class="dp-section"><div style="display:flex;gap:8px">
@@ -485,9 +614,11 @@ function openDetail(id){
   document.getElementById('dp-body').innerHTML=html;
   document.getElementById('detail-panel').classList.add('open');
 }
-function closeDetail(){document.getElementById('detail-panel').classList.remove('open')}
+function closeDetail(){document.getElementById('detail-panel').classList.remove('open');}
 
-// ── MODAL ─────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  MODAL
+// ══════════════════════════════════════════════════════════════
 function openAddModal(){
   editingId=null;
   document.getElementById('modal-title').textContent='Añadir lámina';
@@ -495,19 +626,19 @@ function openAddModal(){
   document.getElementById('add-modal').style.display='flex';
 }
 function openEditModal(id){
-  const l=laminas.find(x=>x.id===id);if(!l)return;
+  var l=laminas.find(x=>x.id===id);if(!l)return;
   editingId=id;
   document.getElementById('modal-title').textContent='Editar lámina';
-  const map={code:'code',title:'title',spec:'especialidad',uso:'uso',zona:'zona',escala:'escala',fecha:'fecha',rev:'rev',diseno:'diseno',dibujo:'dibujo',revision:'revision',aprobacion:'aprobacion',director:'director',notas:'notas'};
+  var map={code:'code',title:'title',spec:'especialidad',uso:'uso',zona:'zona',escala:'escala',fecha:'fecha',rev:'rev',diseno:'diseno',dibujo:'dibujo',revision:'revision',aprobacion:'aprobacion',director:'director',notas:'notas'};
   Object.entries(map).forEach(([f,k])=>document.getElementById('f-'+f).value=l[k]||'');
   document.getElementById('add-modal').style.display='flex';
 }
-function closeModal(){document.getElementById('add-modal').style.display='none'}
+function closeModal(){document.getElementById('add-modal').style.display='none';}
 function saveModal(){
-  const code=document.getElementById('f-code').value.trim();
-  const spec=document.getElementById('f-spec').value.trim();
-  if(!code||!spec){showToast('Código y Especialidad son obligatorios','error');return}
-  const data={code,title:document.getElementById('f-title').value.trim(),especialidad:spec,
+  var code=document.getElementById('f-code').value.trim();
+  var spec=document.getElementById('f-spec').value.trim();
+  if(!code||!spec){showToast('Código y Especialidad son obligatorios','error');return;}
+  var data={code,title:document.getElementById('f-title').value.trim(),especialidad:spec,
     uso:document.getElementById('f-uso').value.trim(),zona:document.getElementById('f-zona').value.trim(),
     escala:document.getElementById('f-escala').value.trim(),fecha:document.getElementById('f-fecha').value.trim(),
     rev:document.getElementById('f-rev').value.trim().toUpperCase(),diseno:document.getElementById('f-diseno').value.trim(),
@@ -515,7 +646,7 @@ function saveModal(){
     aprobacion:document.getElementById('f-aprobacion').value.trim(),director:document.getElementById('f-director').value.trim(),
     notas:document.getElementById('f-notas').value.trim(),updatedAt:new Date().toISOString()};
   if(editingId){
-    const idx=laminas.findIndex(x=>x.id===editingId);
+    var idx=laminas.findIndex(x=>x.id===editingId);
     laminas[idx]={...laminas[idx],...data};
     addLog('update',`Lámina actualizada: <strong>${code}</strong>`,`Rev ${data.rev} · ${spec}`);
     showToast('Lámina actualizada','success');
@@ -529,74 +660,50 @@ function saveModal(){
   save();closeModal();renderTable();
 }
 function deleteLamina(id){
-  const l=laminas.find(x=>x.id===id);
+  var l=laminas.find(x=>x.id===id);
   if(!confirm(`¿Eliminar lámina ${l?.code}?`))return;
   addLog('update',`Lámina eliminada: <strong>${l.code}</strong>`,l.especialidad||'');
   laminas=laminas.filter(x=>x.id!==id);
   save();closeDetail();renderTable();showToast('Lámina eliminada','info');
 }
 
-// ── PDF EXTRACTION ────────────────────────────────────────────
-async function extractFromPDF(file){
-  if(typeof pdfjsLib==='undefined')return{code:file.name.replace('.pdf',''),title:file.name.replace('.pdf',''),especialidad:'',uso:'',zona:'',escala:'',fecha:'',rev:''};
-  const ab=await file.arrayBuffer();
-  const pdf=await pdfjsLib.getDocument({data:ab}).promise;
-  let text='';
-  for(let i=1;i<=Math.min(pdf.numPages,3);i++){
-    const p=await pdf.getPage(i);
-    const tc=await p.getTextContent();
-    text+=tc.items.map(it=>it.str).join(' ')+'\n';
-  }
-  return parseCaratula(text,file.name);
-}
-
-function parseCaratula(text,filename){
-  const t=text.replace(/\s+/g,' ');
-  const codeM=t.match(/\b(\d{6}-[A-Z0-9]+-\d+-[A-Z]+-[A-Z]+-[A-Z]+-\d+)\b/i);
-  const revM=t.match(/\bR(\d{2})\b/i);
-  const fechaM=t.match(/(\d{2}\/\d{2}\/\d{4})/);
-  const zonaM=t.match(/ZONA\s*[:\s]*([A-ZÁÉÍÓÚ\-]+)/i);
-  const escalaM=t.match(/ESCALA\s*[:\s]*([\w\s:]+?)(?:\s{2,}|FECHA|REV|$)/i);
-  const specM=t.match(/ESPECIALIDAD\s*[:\s]*([^\n]{5,60})/i);
-  const usoM=t.match(/USO\s*[:\s]*([^\n]{3,40})/i);
-  const planoM=t.match(/PLANO\s*[:\s]*([^\n]{5,80})/i);
-  return{
-    code:codeM?codeM[1]:filename.replace('.pdf',''),
-    title:planoM?planoM[1].trim().substring(0,80):filename.replace('.pdf',''),
-    especialidad:specM?specM[1].trim().substring(0,60):'',
-    uso:usoM?usoM[1].trim():'',
-    zona:zonaM?zonaM[1].trim():'',
-    escala:escalaM?escalaM[1].trim():'',
-    fecha:fechaM?fechaM[1]:'',
-    rev:revM?(revM[1].startsWith('R')?revM[1]:'R'+revM[1]):''
-  };
-}
-
+// ══════════════════════════════════════════════════════════════
+//  PROCESAR PDF
+// ══════════════════════════════════════════════════════════════
 async function processFiles(files){
   if(!files.length)return;
-  showToast(`Procesando ${files.length} PDF${files.length>1?'s':''}...`,'info');
-  let added=0;
-  for(const file of files){
-    const data=await extractFromPDF(file);
+  var wrap=document.getElementById('progress-wrap');
+  var fill=document.getElementById('progress-fill');
+  var lbl=document.getElementById('progress-label');
+  if(wrap)wrap.style.display='block';
+  var added=0;
+  for(var i=0;i<files.length;i++){
+    var file=files[i];
+    if(lbl)lbl.textContent=`Procesando ${i+1}/${files.length}: ${file.name}`;
+    if(fill)fill.style.width=`${Math.round(((i+1)/files.length)*100)}%`;
+    var data=await extractFromPDF(file);
     if(data&&data.code){
-      const exists=laminas.find(l=>l.code===data.code);
+      var exists=laminas.find(l=>l.code===data.code);
       if(!exists){
         data.id=Date.now().toString(36)+Math.random().toString(36).slice(2);
         data.createdAt=new Date().toISOString();data.updatedAt=new Date().toISOString();data.source='local';
         laminas.push(data);added++;
-      } else if(data.rev>exists.rev){
-        Object.assign(exists,{...data,id:exists.id,createdAt:exists.createdAt});added++;
+      } else {
+        var newRev=parseInt((data.rev||'R00').replace(/\D/g,''),10);
+        var oldRev=parseInt((exists.rev||'R00').replace(/\D/g,''),10);
+        if(newRev>oldRev){Object.assign(exists,{...data,id:exists.id,createdAt:exists.createdAt});added++;}
       }
     }
   }
+  if(wrap)setTimeout(()=>{wrap.style.display='none';if(fill)fill.style.width='0%';},1500);
   addLog('scan',`PDF importado: <strong>${added} lámina${added!==1?'s':''}</strong>`,`${files.length} archivos procesados`);
   save();renderTable();showToast(`${added} lámina${added!==1?'s':''} importada${added!==1?'s':''}`, 'success');
 }
 
-function handleFileSelect(e){processFiles(Array.from(e.target.files))}
+function handleFileSelect(e){processFiles(Array.from(e.target.files));}
 function handleFolderSelect(e){
-  const files=Array.from(e.target.files).filter(f=>f.name.toLowerCase().endsWith('.pdf'));
-  if(!files.length){showToast('No se encontraron PDF en esa carpeta','error');return}
+  var files=Array.from(e.target.files).filter(f=>f.name.toLowerCase().endsWith('.pdf'));
+  if(!files.length){showToast('No se encontraron PDF en esa carpeta','error');return;}
   processFiles(files);
 }
 function handleFileDrop(e){
@@ -605,48 +712,48 @@ function handleFileDrop(e){
   processFiles(Array.from(e.dataTransfer.files).filter(f=>f.name.toLowerCase().endsWith('.pdf')));
 }
 
-// ── ACC ───────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  ACC
+// ══════════════════════════════════════════════════════════════
 function openAccModal(){
-  const cfg=JSON.parse(localStorage.getItem('bim_acc_config')||'null');
-  if(cfg){document.getElementById('acc-token').value=cfg.token||'';document.getElementById('acc-folder-url').value=cfg.folderUrl||''}
+  var cfg=JSON.parse(localStorage.getItem('bim_acc_config')||'null');
+  if(cfg){document.getElementById('acc-token').value=cfg.token||'';document.getElementById('acc-folder-url').value=cfg.folderUrl||'';}
   document.getElementById('acc-modal').style.display='flex';
 }
-function closeAccModal(){document.getElementById('acc-modal').style.display='none'}
+function closeAccModal(){document.getElementById('acc-modal').style.display='none';}
 function saveAccConfig(){
-  const token=document.getElementById('acc-token').value.trim();
-  const folderUrl=document.getElementById('acc-folder-url').value.trim();
-  if(!token){showToast('El token es obligatorio','error');return}
+  var token=document.getElementById('acc-token').value.trim();
+  var folderUrl=document.getElementById('acc-folder-url').value.trim();
+  if(!token){showToast('El token es obligatorio','error');return;}
   localStorage.setItem('bim_acc_config',JSON.stringify({token,folderUrl}));
   showToast('Token ACC guardado','success');closeAccModal();renderTable();
 }
-
 async function scanACC(){
-  const cfg=JSON.parse(localStorage.getItem('bim_acc_config')||'null');
-  if(!cfg?.token){openAccModal();showToast('Configura tu token ACC primero','info');return}
-  const folderUrl=document.getElementById('acc-url-input')?.value?.trim()||cfg.folderUrl;
-  if(!folderUrl){showToast('Ingresa el link de la carpeta ACC','error');return}
+  var cfg=JSON.parse(localStorage.getItem('bim_acc_config')||'null');
+  if(!cfg?.token){openAccModal();showToast('Configura tu token ACC primero','info');return;}
+  var folderUrl=document.getElementById('acc-url-input')?.value?.trim()||cfg.folderUrl;
+  if(!folderUrl){showToast('Ingresa el link de la carpeta ACC','error');return;}
   showToast('Conectando con ACC...','info');
-  const headers={'Authorization':'Bearer '+cfg.token};
+  var headers={'Authorization':'Bearer '+cfg.token};
   try{
-    const parsed=parseACCUrl(folderUrl);
-    if(!parsed){showToast('URL de carpeta ACC no válida','error');return}
-    let folderId=parsed.folderId;
+    var parsed=parseACCUrl(folderUrl);
+    if(!parsed){showToast('URL de carpeta ACC no válida','error');return;}
+    var folderId=parsed.folderId;
     if(!folderId){
-      const r=await fetch(`https://developer.api.autodesk.com/data/v1/projects/${parsed.projectId}/topFolders`,{headers});
-      if(!r.ok){showToast('Error autenticando en ACC. Verifica tu token.','error');return}
-      const d=await r.json();
-      folderId=d.data?.[0]?.id;
+      var r=await fetch(`https://developer.api.autodesk.com/data/v1/projects/${parsed.projectId}/topFolders`,{headers});
+      if(!r.ok){showToast('Error autenticando en ACC','error');return;}
+      var d=await r.json();folderId=d.data?.[0]?.id;
     }
-    if(!folderId){showToast('No se encontró la carpeta','error');return}
-    const r2=await fetch(`https://developer.api.autodesk.com/data/v1/projects/${parsed.projectId}/folders/${encodeURIComponent(folderId)}/contents`,{headers});
-    if(!r2.ok){showToast('Error listando carpeta ACC','error');return}
-    const contents=await r2.json();
-    const pdfs=(contents.data||[]).filter(i=>i.type==='items'&&i.attributes?.displayName?.toLowerCase().endsWith('.pdf'));
-    if(!pdfs.length){showToast('No se encontraron PDF en esa carpeta','info');return}
-    let added=0;
+    if(!folderId){showToast('No se encontró la carpeta','error');return;}
+    var r2=await fetch(`https://developer.api.autodesk.com/data/v1/projects/${parsed.projectId}/folders/${encodeURIComponent(folderId)}/contents`,{headers});
+    if(!r2.ok){showToast('Error listando carpeta ACC','error');return;}
+    var contents=await r2.json();
+    var pdfs=(contents.data||[]).filter(i=>i.type==='items'&&i.attributes?.displayName?.toLowerCase().endsWith('.pdf'));
+    if(!pdfs.length){showToast('No se encontraron PDF en esa carpeta','info');return;}
+    var added=0;
     pdfs.forEach(item=>{
-      const name=item.attributes?.displayName||'';
-      const data=parseCaratula(name,name);
+      var name=item.attributes?.displayName||'';
+      var data=parseCaratula(name,name);
       if(data.code&&!laminas.find(l=>l.code===data.code)){
         data.id=Date.now().toString(36)+Math.random().toString(36).slice(2);
         data.createdAt=new Date().toISOString();data.updatedAt=new Date().toISOString();data.source='acc';data.accItemId=item.id;
@@ -655,81 +762,120 @@ async function scanACC(){
     });
     addLog('scan',`Escaneo ACC: <strong>${added} lámina${added!==1?'s':''}</strong>`,`${pdfs.length} PDF encontrados`);
     save();renderTable();showToast(`${added} lámina${added!==1?'s':''} añadida${added!==1?'s':''} desde ACC`,'success');
-  }catch(err){showToast('Error de conexión: '+err.message,'error')}
+  }catch(err){showToast('Error de conexión: '+err.message,'error');}
 }
-
 function parseACCUrl(url){
-  const m=url.match(/projects\/([a-f0-9\-]+)\/folders\/([^?&/]+)/i);
+  var m=url.match(/projects\/([a-f0-9\-]+)\/folders\/([^?&/]+)/i);
   if(m)return{projectId:'b.'+m[1],folderId:decodeURIComponent(m[2])};
-  const m2=url.match(/projects\/([a-f0-9\-]+)/i);
+  var m2=url.match(/projects\/([a-f0-9\-]+)/i);
   if(m2)return{projectId:'b.'+m2[1],folderId:null};
   return null;
 }
 
-// ── LOG ───────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  LOG
+// ══════════════════════════════════════════════════════════════
 function addLog(type,action,detail){
   logEntries.unshift({id:Date.now().toString(36),type,action,detail,timestamp:new Date().toISOString()});
   if(logEntries.length>500)logEntries=logEntries.slice(0,500);
   localStorage.setItem('bim_log',JSON.stringify(logEntries));
 }
 function renderLog(){
-  if(!logEntries.length){document.getElementById('log-content').innerHTML=`<div class="empty-state"><i class="fa-solid fa-clock-rotate-left"></i><p>No hay entradas en el log aún.</p></div>`;return}
-  const html=logEntries.map(e=>{
-    const d=new Date(e.timestamp);
-    const ds=d.toLocaleDateString('es-PE')+' '+d.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
-    const bc=e.type==='add'?'add':e.type==='scan'?'scan':'update';
-    const bt=e.type==='add'?'+añadir':e.type==='scan'?'⟳ escaneo':'✎ editar';
+  if(!logEntries.length){document.getElementById('log-content').innerHTML=`<div class="empty-state"><i class="fa-solid fa-clock-rotate-left"></i><p>No hay entradas en el log aún.</p></div>`;return;}
+  var html=logEntries.map(e=>{
+    var d=new Date(e.timestamp);
+    var ds=d.toLocaleDateString('es-PE')+' '+d.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'});
+    var bc=e.type==='add'?'add':e.type==='scan'?'scan':'update';
+    var bt=e.type==='add'?'+añadir':e.type==='scan'?'⟳ escaneo':'✎ editar';
     return`<div class="log-entry"><div class="log-time">${ds}</div><div><div class="log-action">${e.action}<span class="log-badge ${bc}">${bt}</span></div><div class="log-detail">${e.detail}</div></div></div>`;
   }).join('');
   document.getElementById('log-content').innerHTML=`<div style="border:1px solid var(--border);border-radius:var(--r2);overflow:hidden;background:var(--bg2)">${html}</div>`;
 }
-function clearLog(){if(!confirm('¿Limpiar todo el historial?'))return;logEntries=[];localStorage.setItem('bim_log','[]');renderLog();showToast('Historial limpiado','info')}
+function clearLog(){if(!confirm('¿Limpiar todo el historial?'))return;logEntries=[];localStorage.setItem('bim_log','[]');renderLog();showToast('Historial limpiado','info');}
 
-// ── STATS ─────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  STATS
+// ══════════════════════════════════════════════════════════════
 function updateStats(){
   document.getElementById('stat-total').textContent=laminas.length;
   document.getElementById('stat-specs').textContent=new Set(laminas.map(l=>l.especialidad).filter(Boolean)).size;
-  const today=new Date().toLocaleDateString('es-PE');
+  var today=new Date().toLocaleDateString('es-PE');
   document.getElementById('stat-today').textContent=logEntries.filter(e=>new Date(e.timestamp).toLocaleDateString('es-PE')===today).length;
-  const last=logEntries[0];
+  var last=logEntries[0];
   document.getElementById('stat-last').textContent=last?new Date(last.timestamp).toLocaleDateString('es-PE'):'—';
   document.getElementById('laminas-count').textContent=`${getFiltered().length} lámina${getFiltered().length!==1?'s':''}`;
 }
 
-// ── EXPORT ────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  EXPORT
+// ══════════════════════════════════════════════════════════════
 function exportCSV(){
-  if(!laminas.length){showToast('No hay láminas para exportar','info');return}
-  const keys=['code','title','especialidad','uso','zona','escala','fecha','rev','diseno','dibujo','revision','aprobacion','director','notas'];
-  const headers=['Código','Título','Especialidad','Uso','Zona','Escala','Fecha','Rev','Diseño','Dibujo','Revisión','Aprobación','Director','Notas'];
-  const rows=[headers,...laminas.map(l=>keys.map(k=>`"${(l[k]||'').replace(/"/g,'""')}"`))]
+  if(!laminas.length){showToast('No hay láminas para exportar','info');return;}
+  var keys=['code','title','especialidad','uso','zona','escala','fecha','rev','diseno','dibujo','revision','aprobacion','director','notas'];
+  var headers=['Código','Nombre del Plano','Especialidad','Uso','Zona','Escala','Fecha','Rev','Diseño','Dibujo','Revisión','Aprobación','Director','Notas'];
+  var rows=[headers,...laminas.map(l=>keys.map(k=>`"${(l[k]||'').replace(/"/g,'""')}"`))]
     .map(r=>r.join(',')).join('\n');
   download(`laminas_bim_${new Date().toISOString().slice(0,10)}.csv`,'text/csv',rows);
   showToast('CSV exportado','success');
 }
 function exportJSON(){
-  if(!laminas.length){showToast('No hay láminas para exportar','info');return}
-  download(`laminas_bim_${new Date().toISOString().slice(0,10)}.json`,'application/json',JSON.stringify({exportedAt:new Date().toISOString(),laminas,log:logEntries},null,2));
+  if(!laminas.length){showToast('No hay láminas para exportar','info');return;}
+  download(`laminas_bim_${new Date().toISOString().slice(0,10)}.json`,'application/json',
+    JSON.stringify({exportedAt:new Date().toISOString(),laminas,log:logEntries},null,2));
   showToast('JSON exportado','success');
 }
 function download(filename,type,content){
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=filename;a.click();
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=filename;a.click();
 }
+function clearPDFSource(){
+  // Elimina solo las láminas importadas desde PDF/local (source = 'local')
+  // Las añadidas manualmente o desde ACC se conservan
+  var pdfLaminas = laminas.filter(l => l.source === 'local' || l.source === 'pdf');
+  if(!pdfLaminas.length){ showToast('No hay láminas de PDF para limpiar','info'); return; }
+  if(!confirm(`¿Eliminar las ${pdfLaminas.length} láminas importadas desde PDF?\nLas añadidas manualmente o desde ACC no se tocarán.`)) return;
+  laminas = laminas.filter(l => l.source !== 'local' && l.source !== 'pdf');
+  // Resetea los file inputs para permitir volver a cargar los mismos archivos
+  var fi = document.getElementById('file-input');
+  var fo = document.getElementById('folder-input');
+  if(fi) fi.value = '';
+  if(fo) fo.value = '';
+  addLog('update', `PDFs limpiados: <strong>${pdfLaminas.length} lámina${pdfLaminas.length!==1?'s':''} eliminadas</strong>`, 'Fuente: local/PDF');
+  save(); renderTable();
+  showToast(`${pdfLaminas.length} lámina${pdfLaminas.length!==1?'s':''} de PDF eliminadas`, 'info');
+}
+
 function clearData(){
-  if(!confirm('¿Eliminar TODOS los datos? Esta acción no se puede deshacer.'))return;
+  if(!confirm('¿Eliminar TODOS los datos? No se puede deshacer.'))return;
   laminas=[];logEntries=[];localStorage.removeItem('bim_laminas');localStorage.removeItem('bim_log');
   renderTable();showToast('Datos eliminados','info');
 }
-function save(){localStorage.setItem('bim_laminas',JSON.stringify(laminas))}
+function save(){localStorage.setItem('bim_laminas',JSON.stringify(laminas));}
 
-// ── TOAST ─────────────────────────────────────────────────────
-let toastTimer;
-function showToast(msg,type='success'){
-  const t=document.getElementById('toast');
-  const icons={success:'fa-circle-check',error:'fa-circle-xmark',info:'fa-circle-info'};
+// ══════════════════════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════════════════════
+var toastTimer;
+function showToast(msg,type){
+  type=type||'success';
+  var t=document.getElementById('toast');
+  var icons={success:'fa-circle-check',error:'fa-circle-xmark',info:'fa-circle-info'};
   t.className='toast '+type;t.querySelector('i').className='fa-solid '+(icons[type]||icons.success);
   document.getElementById('toast-msg').textContent=msg;t.classList.add('show');
-  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3000);
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3500);
 }
+
+// ══════════════════════════════════════════════════════════════
+//  MIGRACIÓN: limpia láminas donde title === code (bug anterior)
+// ══════════════════════════════════════════════════════════════
+(function migrateTitles(){
+  var changed=false;
+  laminas.forEach(function(l){
+    // Si el título es igual al código o tiene formato de código BRH → limpiar
+    if(l.title&&l.code&&l.title.toUpperCase()===l.code.toUpperCase()){l.title='';changed=true;}
+    if(l.title&&/^\d{6}-[A-Z0-9]+-\d{3}-/i.test(l.title)){l.title='';changed=true;}
+  });
+  if(changed)save();
+})();
 
 renderTable();
 </script>
