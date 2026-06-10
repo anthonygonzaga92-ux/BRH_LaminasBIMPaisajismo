@@ -273,23 +273,38 @@ td.td-clip{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:no
   </div>
 </div>
 
+<!-- DEBUG MODAL -->
+<div class="modal-overlay" id="debug-modal" style="display:none" onclick="if(event.target===this)document.getElementById('debug-modal').style.display='none'">
+  <div class="modal" style="width:700px;max-width:95vw">
+    <div class="modal-header">
+      <h3>🔍 Texto crudo extraído del PDF</h3>
+      <button class="action-btn" onclick="document.getElementById('debug-modal').style.display='none'"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:11px;color:var(--text3);margin-bottom:10px">Carga un PDF primero. Este texto es lo que ve el parser — cópialo y compártelo para ajustar los regex.</p>
+      <textarea id="debug-text" readonly style="width:100%;height:340px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--green);font-family:var(--mono);font-size:11px;padding:10px;resize:vertical;outline:none;line-height:1.6">Carga un PDF para ver el texto aquí...</textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('debug-text').value);showToast('Texto copiado','success')">
+        <i class="fa-solid fa-copy"></i>Copiar texto
+      </button>
+      <button class="btn" onclick="document.getElementById('debug-modal').style.display='none'">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"><i class="fa-solid fa-circle-check"></i><span id="toast-msg">OK</span></div>
 <input type="file" id="file-input" accept=".pdf" multiple style="display:none" onchange="handleFileSelect(event)">
 <input type="file" id="folder-input" webkitdirectory accept=".pdf" style="display:none" onchange="handleFolderSelect(event)">
 
 <script>
-// ── PDF.js Worker: creado como Blob inline para funcionar en cualquier sandbox/CSP
-// Importa el worker desde la misma CDN que el script principal via importScripts
+// ── PDF.js Worker
 if(typeof pdfjsLib!=='undefined'){
   try {
     var workerUrl = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@2.16.105/build/pdf.worker.min.js';
-    var workerBlob = new Blob(
-      ['importScripts("' + workerUrl + '");'],
-      {type:'application/javascript'}
-    );
+    var workerBlob = new Blob(['importScripts("' + workerUrl + '");'],{type:'application/javascript'});
     pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(workerBlob);
   } catch(e) {
-    // Si Blob falla (muy raro), usa la URL directa como fallback
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@2.16.105/build/pdf.worker.min.js';
   }
 }
@@ -301,22 +316,17 @@ let currentSource = 'acc';
 let colFilters = {};
 
 // ══════════════════════════════════════════════════════════════
-//  PARSER DE CARÁTULA BRH — v3
-//  Fix confirmado con PDF real 500122-BERH001-740-XX-DR-LS-030006
-//  Problema raíz: la carátula BRH tiene fecha+firma en cada celda
-//  ej: "DISEÑO : VALERIA CONCHA 01/06/2026"
-//  → hay que limpiar la fecha del final de cada campo de equipo
+//  PARSER DE CARÁTULA BRH — v4
+//  Fix: Nombre del plano = todo entre "PLANO :" y "ESPECIALIDAD :"
+//  captura correctamente 2-3 líneas dentro del cajeTín
 // ══════════════════════════════════════════════════════════════
 
-// Labels conocidos — delimitadores de fin de campo
 var KL = 'PLANO|ESPECIALIDAD|USO|ZONA|ESCALA|FECHA|REVISION|REVISIÓN|CODIGO DEL PLANO|CÓDIGO DEL PLANO|CODIGO|DISEÑO|DISENO|DIBUJO|APROBACION|APROBACIÓN|DIRECTOR DEL PROYECTO|DIRECTOR|SITUACION|SITUACIÓN|SECCIONES';
 
-// Quita fecha dd/mm/yyyy del final de un valor (la carátula BRH la pone tras el nombre)
 function cleanDate(val) {
   return val.replace(/\s+\d{2}\/\d{2}\/\d{4}\s*$/,'').replace(/\s+\d{2}\/\d{2}\/\d{2}\s*$/,'').trim();
 }
 
-// Extrae un campo usando lookahead por el siguiente label conocido
 function xf(labelRx, text, maxLen) {
   maxLen = maxLen || 80;
   var p = new RegExp(labelRx+'\\s*[:\\-]\\s*(.+?)(?=\\s+(?:'+KL+')\\s*[:\\-]|$)', 'i');
@@ -332,22 +342,25 @@ function parseCaratula(rawText, filename) {
     .trim();
 
   // ── CÓDIGO DEL PLANO ──────────────────────────────────────────
-  // Patrón BRH: 500122-BERH001-740-XX-DR-LS-030006
   var codeM = text.match(/\b(\d{6}-[A-Z0-9]+-\d{3}-[A-Z0-9]+-[A-Z]+-[A-Z]+-\d{6})\b/i);
   var code  = codeM ? codeM[1].toUpperCase() : filename.replace(/\.pdf$/i,'');
 
   // ── NOMBRE DEL PLANO ──────────────────────────────────────────
-  // La carátula BRH: "PLANO : ESTANQUE VERDE ADUS 1 SECCIONES GENERALES..."
-  // Corta antes de SECCIONES GENERALES o SITUACION
+  // FIX v4: captura TODO entre "PLANO :" y "ESPECIALIDAD :"
+  // Esto abarca correctamente 1, 2 o 3 líneas del cajeTín BRH
+  // Ejemplo real:
+  //   PLANO : ESTANQUE VERDE ADUS 1 §
+  //           PLANTA GENERAL DE PAISAJE §
+  //           SECTOR 4 – COLA DE ALACRÁN 1 (REDES) §
+  //   ESPECIALIDAD : ...
   var title = '';
-  var planoM = text.match(/PLANO\s*[:\-]\s*(.+?)(?=\s+(?:SECCIONES\s+GENERALES|SITUACI[OÓ]N|ESPECIALIDAD|USO|ZONA|ESCALA|§|$))/i);
+  var planoM = text.match(/PLANO\s*[:\-]\s*([\s\S]+?)(?=\s*ESPECIALIDAD\s*[:\-])/i);
   if (planoM) {
     title = planoM[1]
-      .replace(/SECCIONES\s+GENERALES.*/i, '')
-      .replace(/SITUACI[OÓ]N.*/i, '')
-      .replace(/§/g, ' ')
+      .replace(/§/g, ' ')        // saltos de línea virtuales → espacio
+      .replace(/\s{2,}/g, ' ')   // colapsa espacios múltiples
       .trim()
-      .substring(0, 100);
+      .substring(0, 200);        // máx 200 chars
   }
   if (!title) title = '';
 
@@ -369,27 +382,18 @@ function parseCaratula(rawText, filename) {
   var escalaM = text.match(/ESCALA\s*[:\-]\s*(.+?)(?=\s+(?:FECHA|ZONA|CODIGO|CÓDIGO|DISEÑO|DISENO|§|$))/i);
   if (escalaM) {
     escala = escalaM[1].replace(/§/g,' ').trim().substring(0,30);
-    // Si es "GRAFICA" o "GRÁFICA" se deja como está (es válido en BRH)
   }
 
   // ── FECHA ─────────────────────────────────────────────────────
-  // La carátula tiene la fecha junto a REV en la misma fila
-  // Busca FECHA : dd/mm/yyyy o directamente el patrón de fecha
   var fechaLabelM = text.match(/\bFECHA\s*[:\-]\s*(\d{2}\/\d{2}\/\d{4})/i);
   var fechaAnyM   = text.match(/\b(\d{2}\/\d{2}\/\d{4})\b/);
-  // Prefiere la que viene después de "FECHA :" para no agarrar fechas del equipo
   var fecha = fechaLabelM ? fechaLabelM[1] : (fechaAnyM ? fechaAnyM[1] : '');
 
   // ── REV ───────────────────────────────────────────────────────
-  // La carátula tiene: "REV : R01"
   var revM = text.match(/\bREV\s*[:\-]\s*(R\d{2,3})\b/i);
   var rev  = revM ? revM[1].toUpperCase() : '';
 
   // ── EQUIPO DE TRABAJO ─────────────────────────────────────────
-  // IMPORTANTE: en la carátula BRH cada celda tiene nombre + fecha:
-  // "DISEÑO : VALERIA CONCHA 01/06/2026"
-  // cleanDate() quita la fecha del final
-
   var diseno = cleanDate(xf('DISE[ÑN]O', text, 60));
   var dibujo = cleanDate(xf('DIBUJO', text, 60));
 
@@ -410,16 +414,14 @@ function parseCaratula(rawText, filename) {
 }
 
 // ══════════════════════════════════════════════════════════════
-//  EXTRACCIÓN PDF — preserva coordenadas Y para saltos de línea
+//  EXTRACCIÓN PDF
 // ══════════════════════════════════════════════════════════════
 async function extractFromPDF(file) {
   var fallback = {
     code: file.name.replace(/\.pdf$/i,'').toUpperCase(),
-    title: '',   // vacío — el user completa manualmente
-    especialidad:'', uso:'', zona:'', escala:'', fecha:'', rev:'',
+    title: '', especialidad:'', uso:'', zona:'', escala:'', fecha:'', rev:'',
     diseno:'', dibujo:'', revision:'', aprobacion:'', director:''
   };
-  // Intenta extraer el código del nombre del archivo si sigue el patrón BRH
   var codeFromName = file.name.match(/(\d{6}-[A-Z0-9]+-\d{3}-[A-Z0-9]+-[A-Z]+-[A-Z]+-\d{6})/i);
   if (codeFromName) fallback.code = codeFromName[1].toUpperCase();
   if (typeof pdfjsLib === 'undefined') return fallback;
@@ -439,13 +441,11 @@ async function extractFromPDF(file) {
       }
       text += '\n';
     }
-    // DEBUG: guarda el texto crudo para diagnóstico (ver con debugPDF())
     window._lastPDFText = text;
     console.log('=== TEXTO CRUDO PDF ===\n', text.substring(0, 2000));
     return parseCaratula(text, file.name);
   } catch(err) {
     console.warn('PDF parse error:', err);
-    // Intenta al menos extraer el código del nombre del archivo
     var codeFromName2 = file.name.match(/(\d{6}-[A-Z0-9]+-\d{3}-[A-Z0-9]+-[A-Z]+-[A-Z]+-\d{6})/i);
     return {
       code: codeFromName2 ? codeFromName2[1].toUpperCase() : file.name.replace(/\.pdf$/i,''),
@@ -714,14 +714,11 @@ async function processFiles(files){
       } else {
         var newRev=parseInt((data.rev||'R00').replace(/\D/g,''),10);
         var oldRev=parseInt((exists.rev||'R00').replace(/\D/g,''),10);
-        // Actualiza SIEMPRE los campos que estén vacíos, o si la rev es más nueva
         var shouldUpdate = newRev >= oldRev;
         if(shouldUpdate){
-          // Preserva campos que el usuario haya editado manualmente (no vacíos)
           var merged = {};
           var fields = ['title','especialidad','uso','zona','escala','fecha','rev','diseno','dibujo','revision','aprobacion','director'];
           fields.forEach(function(k){
-            // Si el campo existente está vacío o la rev es mayor → toma el nuevo valor
             merged[k] = (!exists[k] || newRev > oldRev) ? (data[k]||exists[k]) : exists[k];
           });
           Object.assign(exists, merged, {updatedAt:new Date().toISOString()});
@@ -863,13 +860,10 @@ function download(filename,type,content){
   var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=filename;a.click();
 }
 function clearPDFSource(){
-  // Elimina solo las láminas importadas desde PDF/local (source = 'local')
-  // Las añadidas manualmente o desde ACC se conservan
   var pdfLaminas = laminas.filter(l => l.source === 'local' || l.source === 'pdf');
   if(!pdfLaminas.length){ showToast('No hay láminas de PDF para limpiar','info'); return; }
   if(!confirm(`¿Eliminar las ${pdfLaminas.length} láminas importadas desde PDF?\nLas añadidas manualmente o desde ACC no se tocarán.`)) return;
   laminas = laminas.filter(l => l.source !== 'local' && l.source !== 'pdf');
-  // Resetea los file inputs para permitir volver a cargar los mismos archivos
   var fi = document.getElementById('file-input');
   var fo = document.getElementById('folder-input');
   if(fi) fi.value = '';
@@ -878,7 +872,6 @@ function clearPDFSource(){
   save(); renderTable();
   showToast(`${pdfLaminas.length} lámina${pdfLaminas.length!==1?'s':''} de PDF eliminadas`, 'info');
 }
-
 function clearData(){
   if(!confirm('¿Eliminar TODOS los datos? No se puede deshacer.'))return;
   laminas=[];logEntries=[];localStorage.removeItem('bim_laminas');localStorage.removeItem('bim_log');
@@ -900,12 +893,20 @@ function showToast(msg,type){
 }
 
 // ══════════════════════════════════════════════════════════════
+//  DEBUG MODAL
+// ══════════════════════════════════════════════════════════════
+function showDebugModal(){
+  var t = window._lastPDFText || 'Aún no se ha cargado ningún PDF en esta sesión.';
+  document.getElementById('debug-text').value = t;
+  document.getElementById('debug-modal').style.display = 'flex';
+}
+
+// ══════════════════════════════════════════════════════════════
 //  MIGRACIÓN: limpia láminas donde title === code (bug anterior)
 // ══════════════════════════════════════════════════════════════
 (function migrateTitles(){
   var changed=false;
   laminas.forEach(function(l){
-    // Si el título es igual al código o tiene formato de código BRH → limpiar
     if(l.title&&l.code&&l.title.toUpperCase()===l.code.toUpperCase()){l.title='';changed=true;}
     if(l.title&&/^\d{6}-[A-Z0-9]+-\d{3}-/i.test(l.title)){l.title='';changed=true;}
   });
@@ -914,33 +915,5 @@ function showToast(msg,type){
 
 renderTable();
 </script>
-<!-- DEBUG MODAL -->
-<div class="modal-overlay" id="debug-modal" style="display:none" onclick="if(event.target===this)document.getElementById('debug-modal').style.display='none'">
-  <div class="modal" style="width:700px;max-width:95vw">
-    <div class="modal-header">
-      <h3>🔍 Texto crudo extraído del PDF</h3>
-      <button class="action-btn" onclick="document.getElementById('debug-modal').style.display='none'"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div class="modal-body">
-      <p style="font-size:11px;color:var(--text3);margin-bottom:10px">Carga un PDF primero. Este texto es lo que ve el parser — cópialo y compártelo para ajustar los regex.</p>
-      <textarea id="debug-text" readonly style="width:100%;height:340px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--green);font-family:var(--mono);font-size:11px;padding:10px;resize:vertical;outline:none;line-height:1.6">Carga un PDF para ver el texto aquí...</textarea>
-    </div>
-    <div class="modal-footer">
-      <button class="btn" onclick="navigator.clipboard.writeText(document.getElementById('debug-text').value);showToast('Texto copiado','success')">
-        <i class="fa-solid fa-copy"></i>Copiar texto
-      </button>
-      <button class="btn" onclick="document.getElementById('debug-modal').style.display='none'">Cerrar</button>
-    </div>
-  </div>
-</div>
-
-<script>
-function showDebugModal(){
-  var t = window._lastPDFText || 'Aún no se ha cargado ningún PDF en esta sesión.';
-  document.getElementById('debug-text').value = t;
-  document.getElementById('debug-modal').style.display = 'flex';
-}
-</script>
-
 </body>
 </html>
